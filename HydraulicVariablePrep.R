@@ -14,22 +14,64 @@ library(tidyverse)
 #read in hydraulic relationships 
 shear <- read_csv("shear.csv", skip = 2)
 force <- read_csv("pullout_force.csv")
-table <- read_csv("watertable.csv")
+watab <- read_csv("watertable.csv")
+inund <- read_csv("inundation.csv")
+
+
+
+################### Inundation (depth) ##########################
+
+
+######## Pre_germination threshold of 3cm minimum
+
+
+depth_pre_germ <- 3
+
+
+
+######## Germination Inundation equation from Nakai & Kisanuki fig 4 predicts tree density as number/m2 (y) from total total duration of Inunation in days (x)
+
+
+tree_density <-  function (x) {
+  return (
+    (1.5*10^-7)*(x^3)-
+      (1.0*10^-4)*(x^2)+
+      (0.03*x)-
+      (1.28)
+    )
+}
+
+x <- 150
+tree_density(x)
+
+######## seedling inudation curve from data predicting percent mortality from duration and depth Halsell et al and Vandersande et al
+
+
+inund <- inund %>% 
+  filter(species == "Salix gooddingii")
+
+plot(inund$depth_cm, inund$mortality_prec)
+
+summary(depth_seedling_mod <- lm(mortality_prec ~ depth_cm + I(depth_cm^2) , data = inund))
+
+save(depth_seedling_mod, file = "depth_seedling_mod.rda")
+
+
+############################################ Water Table ##################################################
 
 
 
 
+###### Germination water table drawdown curve with Horton et al and Stella et al
 
-
-#Water table
-names(table)[4:10] <- c("draw_down_cm_day", "x50_day_survival", "mean_42_day_survival", "medium_survival_days", "survivor_root_growth_rate_mm_day",
+names(watab)[4:10] <- c("draw_down_cm_day", "x50_day_survival", "mean_42_day_survival", "medium_survival_days", "survivor_root_growth_rate_mm_day",
                         "died_root_growth_rate_mm_day", "mean_depth_to_water_table_m")
-table <- table %>% 
+watab <- watab %>% 
   filter(species %in% c("sgooddingii", "sexigua"), lifestage == "seedling", x50_day_survival != "na")
 
-table$x50_day_survival <- as.numeric(table$x50_day_survival)
+watab$x50_day_survival <- as.numeric(watab$x50_day_survival)
 
-ggplot(data = table, mapping = aes(x = draw_down_cm_day, y = x50_day_survival, color = location, shape = species))+
+ggplot(data = watab, mapping = aes(x = draw_down_cm_day, y = x50_day_survival, color = location, shape = species))+
   geom_point(size = 5)+
   theme_classic()+
   labs(x = "Draw down rate (cm/day)", y = "50 day survival (%)")+
@@ -37,12 +79,19 @@ ggplot(data = table, mapping = aes(x = draw_down_cm_day, y = x50_day_survival, c
         legend.title = element_text(size = 15), legend.text = element_text(size = 12))
 
 
+summary(watab_mod <- lm(x50_day_survival~draw_down_cm_day, data = watab))
+
+save(watab_mod, file = "watab_mod.rda")
 
 
+##### Adult water table depth threshold (cm below surface) Stromberg & Merritt and Lite & stromberg
 
 
+watab_adult <- 300
 
-# Force
+
+######### Force
+
 # For force, we only have a population of values that successfully broke or pulled out a seedling
 #we will take percentiles to determine P(seedling death)
 # Break: 1 denotes roots breaking; 0 denotes roots slipping out.
@@ -58,10 +107,10 @@ names(force)[10] <- "Break"
 
 force$Scour_depth_m <- as.factor(force$Scour_depth_m)
 force$Break <- as.factor(force$Break)
-force$Breakc<-ifelse(force$Break ==0, "slip", "break")
+force$Break<-ifelse(force$Break ==0, "slip", "break")
 
 ggplot(data = force, mapping = aes(x = Scour_depth_m, y = Pullout_force_N))+
-  geom_boxplot(aes(color = Breakc))+
+  geom_boxplot(aes(color = Break))+
   labs(x = "Scour Depth (m)", y = "Force (N)", color = "Type")+
   theme_classic()+
   theme(axis.text = element_text(size = 20), axis.title = element_text(size = 20))
@@ -79,7 +128,13 @@ force1 <- force %>%
 
 
 
-# shear
+############# shear Stress ##########################
+
+
+### seedling data using Pasquale et al
+
+
+
 names(shear)[c(1,4)] <- c("shear", "mortality")
 shear$year <- as.factor(shear$year)
 ggplot(data = shear, mapping = aes(x = shear, y = mortality, color = year, shape = year))+
@@ -89,6 +144,19 @@ ggplot(data = shear, mapping = aes(x = shear, y = mortality, color = year, shape
   theme_classic()+
   geom_hline(yintercept = 50, color = "red", lwd = 1.5)+
   theme(axis.text = element_text(size = 20), axis.title = element_text(size = 20))
+
+summary(shear_mod <- lm(mortality~shear, data = shear))
+
+save(shear_mod, file= "shear_mod.rda")
+
+
+
+
+#Adult Thresholds for shear stress
+
+
+
+
 
 
 
