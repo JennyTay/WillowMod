@@ -28,8 +28,14 @@ wateryr <- function(x){
 hydlics$Wateryr <- wateryr(hydlics$Date)
 
 hydlics <- hydlics %>% 
-  gather(key = "Point", value = "Depth", D1:D10)%>% 
-  select(Date, Year, Month, Wateryr, Time, Node, Point, Flow..cfs., Velocity..ft.s., Depth, Shear_Pa, Power_W.m2)
+  gather(key = "DepthPoint", value = "Depth", D1:D10)%>% 
+  gather(key = "VelocityPoint", value = "Velocity", V1:V3) %>% 
+  gather(key = "ShearPoint", value = "Shear", S1:S3) %>% 
+  gather(key= "watabPoint", value = "TableDepth", W1:W3) %>% 
+  gather(key = "PowerPoint", value = "Power", P2:P3) %>% 
+  select(Date, Year, Month, Wateryr, Time, Node, DepthPoint, VelocityPoint, ShearPoint, PowerPoint, watabPoint, Flow..cfs., Depth, Shear, Velocity, Power, TableDepth)
+
+save(hydlics, file = "hydlics.RData", compress = "xz")
 
 patches <- unique(hydlics$Node)
 patches <- patches %>% 
@@ -45,32 +51,16 @@ most_consecutive_val = function(vector, val = 1) {
 #read in models and assign thresholds for use in model
 
 #models
-load(tree_density.rda)
-load(shear_mod.rda)
-load(watab_mod.rda)
-load(depth_seedling_mod.rda)
+
+load("shear_seedling.rda")
+load("watab_seedling.rda")
+load("depth_germ.rda")
+load("depth_seedling_mod.rda")
 
 #thresholds
 depth_pre_germ <- 3
 watab_adult <- 300
 
-
-
-#calculate metrics for each variable
-
-#germination
-#subset physcial data timeseries for  march  - sept ??? 
-#max depth
-#duration of time depth exceeds "x" in
-#velocity/shear stress maximum
-#groundwater recession rate
-#max depth to groundwater table/capillary fringe
-
-
-#seedling
-#depth
-#velocity
-#groundwaterrecession
 
 
 

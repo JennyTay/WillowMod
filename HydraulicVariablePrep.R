@@ -32,7 +32,7 @@ depth_pre_germ <- 3
 ######## Germination Inundation equation from Nakai & Kisanuki fig 4 predicts tree density as number/m2 (y) from total total duration of Inunation in days (x)
 
 
-tree_density <-  function (x) {
+depth_germ <-  function (x) {
   return (
     (1.5*10^-7)*(x^3)-
       (1.0*10^-4)*(x^2)+
@@ -42,10 +42,10 @@ tree_density <-  function (x) {
 }
 
 #test
-x <- 150
-tree_density(x)
+x <- 400
+depth_germ(x)
 
-save(tree_density, file = "tree_density.rda")
+save(depth_germ, file = "depth_germ.rda")
 
 ######## seedling inudation curve from data predicting percent mortality from duration and depth Halsell et al and Vandersande et al
 
@@ -82,9 +82,9 @@ ggplot(data = watab, mapping = aes(x = draw_down_cm_day, y = x50_day_survival, c
         legend.title = element_text(size = 15), legend.text = element_text(size = 12))
 
 
-summary(watab_mod <- lm(x50_day_survival~draw_down_cm_day, data = watab))
+summary(watab_seedling <- lm(x50_day_survival~draw_down_cm_day, data = watab))
 
-save(watab_mod, file = "watab_mod.rda")
+save(watab_seedling, file = "watab_seedling.rda")
 
 
 ##### Adult water table depth threshold (cm below surface) Stromberg & Merritt and Lite & stromberg
@@ -148,12 +148,17 @@ ggplot(data = shear, mapping = aes(x = shear, y = mortality, color = year, shape
   geom_hline(yintercept = 50, color = "red", lwd = 1.5)+
   theme(axis.text = element_text(size = 20), axis.title = element_text(size = 20))
 
-summary(shear_mod <- lm(mortality~shear, data = shear))
+summary(shear_seedling <- lm(mortality~shear, data = shear))
 
-save(shear_mod, file= "shear_mod.rda")
+save(shear_seedling, file= "shear_seedling.rda")
 
 
 
+
+#### adult shear stress threshold
+
+
+shear_adult <- 
 
 #Adult Thresholds for shear stress
 

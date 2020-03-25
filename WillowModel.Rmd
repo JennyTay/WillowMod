@@ -1,0 +1,54 @@
+Model for the Gooddingg's Black willow
+======================================
+
+
+In this analysis we are using  a series of rules to determine whether simulated hydralics are suitable for the different life history phases of the Gooddingg's Black willow.  The hydalics are simulated for the Los Angeles River using different waster water reuse scenarios. We start by loading the hydralic data.  The hydrulic data shows hourly data for each cross section of interest and the variables streamflow, water depth, velocity, shear stress, stream power, and water table depth.
+
+```{r}
+
+load("hydlics.RData")
+
+
+most_consecutive_val = function(vector, val = 1) { 
+  with(rle(vector), max(lengths[values == val]))
+}
+
+
+```
+
+# Germination Suitabiity
+
+First, we determine the suitabliity for each node and year to support black willow germination.  Germination suitalbity is determined using inundation duration. 
+
+For inundation duration we will use data from Nakai, A., & Kisanuki, H. (2007). Effect of inundation duration on Salix gracilistyla density and size on a gravel bar. Journal of Forest Research, 12(5), 365–370. https://doi.org/10.1007/s10310-007-0027-7. They found that inundation durations longer than 280 days or less than 85 days led to low or zero tree density 1-4 years later, suggesting that germination was unsuccessful. We will use 5cm as a depth to suggest innundation, anything less than this would be unreliable output from the HEC RAS model.
+
+The rule, calculated for each year:
+1. IF depth exceed 5cm for less than 85 days, Unsuitable
+2. IF dpeth exceed 5cm for greater than 280 days, Unsuitable
+3. IF depth exceeds 5cm for >85 and <280 days, Suitable
+
+
+```{r}
+
+
+for (i in hydlics$year){
+  
+  temp <- hydlics %>% 
+    filter(Year %in% i) %>% 
+    group_by(DepthPoint) %>% 
+    mutate(pre_germ_depth = most_consecutive_val(vector=abs(diff(which(Depth >=5))==1)),
+           dep_pregrm_depth2 = ifelse(pre_germ_depth>=2040 & pre_germ_depth <= 6720, TRUE, FALSE))
+  
+  
+  
+  
+}
+
+
+```
+
+
+# Seeding Suitablitiy
+
+For watertable drawdown rate, we will use experimental data from the following two studies: Horton, J. L., & Clark, J. L. (2001). Water table decline alters growth and survival of Salix gooddingii and Tamarix chinensis seedlings. Forest Ecology and Management, 140(2–3), 239–247. and 
+Stella, J. C., Battles, J., & McBride, J. (2006). Restoring recruitment processes for riparian cottonwoods and willows: a field-calibrated predictive model for the lower San Joaquin Basin.  These studies report data that we used to develop a curve relating 50 day survival
