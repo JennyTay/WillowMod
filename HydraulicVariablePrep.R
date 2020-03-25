@@ -41,8 +41,11 @@ tree_density <-  function (x) {
     )
 }
 
+#test
 x <- 150
 tree_density(x)
+
+save(tree_density, file = "tree_density.rda")
 
 ######## seedling inudation curve from data predicting percent mortality from duration and depth Halsell et al and Vandersande et al
 

@@ -41,6 +41,21 @@ most_consecutive_val = function(vector, val = 1) {
 
 
 
+
+#read in models and assign thresholds for use in model
+
+#models
+load(tree_density.rda)
+load(shear_mod.rda)
+load(watab_mod.rda)
+load(depth_seedling_mod.rda)
+
+#thresholds
+depth_pre_germ <- 3
+watab_adult <- 300
+
+
+
 #calculate metrics for each variable
 
 #germination
