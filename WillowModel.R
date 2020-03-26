@@ -28,12 +28,12 @@ wateryr <- function(x){
 hydlics$Wateryr <- wateryr(hydlics$Date)
 
 hydlics <- hydlics %>% 
-  gather(key = "DepthPoint", value = "Depth", D1:D10)%>% 
-  gather(key = "VelocityPoint", value = "Velocity", V1:V3) %>% 
-  gather(key = "ShearPoint", value = "Shear", S1:S3) %>% 
+  gather(key = "DepthPoint", value = "depth_cm", D1:D10)%>% 
+  gather(key = "VelocityPoint", value = "velocity_m_s", V1:V3) %>% 
+  gather(key = "ShearPoint", value = "shear_pa", S1:S3) %>% 
   gather(key= "watabPoint", value = "TableDepth", W1:W3) %>% 
-  gather(key = "PowerPoint", value = "Power", P2:P3) %>% 
-  select(Date, Year, Month, Wateryr, Time, Node, DepthPoint, VelocityPoint, ShearPoint, PowerPoint, watabPoint, Flow..cfs., Depth, Shear, Velocity, Power, TableDepth)
+  gather(key = "PowerPoint", value = "power", P2:P3) %>% 
+  select(Date, Year, Month, Wateryr, Time, Node, DepthPoint, VelocityPoint, ShearPoint, PowerPoint, watabPoint, Flow..cfs., depth_cm, shear_pa, velocity_m_s, power, TableDepth)
 
 save(hydlics, file = "hydlics.RData", compress = "xz")
 
@@ -58,7 +58,7 @@ load("depth_germ.rda")
 load("depth_seedling_mod.rda")
 
 #thresholds
-depth_pre_germ <- 3
+depth_pre_germ <- 5
 watab_adult <- 300
 
 
