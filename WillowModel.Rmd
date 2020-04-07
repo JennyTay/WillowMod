@@ -1,42 +1,52 @@
-Model for the Gooddingg's Black willow
-======================================
+---
+title: "Approach for Black willow model"
+author: "Jenny Rogers"
+bibliography: refs.bib
+
+---
+
 
 
 Load libraries
 
-```{r echo = FALSE}
+```{r echo = FALSE, results='hide'}
 
 library(tidyverse)
+library(lubridate)
 
 
 
 ```
 
 
-In this analysis we are using  a series of rules to determine whether simulated hydralics are suitable for the different life history phases of the Gooddingg's Black willow.  The hydralics are simulated for the Los Angeles River using different waster water reuse scenarios. We start by loading the hydralic data.  The hydrulic data shows hourly data for each cross section of interest and the variables streamflow, water depth, velocity, shear stress, stream power, and water table depth. For now, we will just generate fake data.
+In this analysis we are using  a series of rules to determine whether simulated hydraulics are suitable for the different life history phases of the Gooddingg's Black willow.  The hydraulics are simulated for the Los Angeles River using different waster water reuse scenarios. We start by loading the hydraulic data.  The hydraulic data shows hourly data for each cross section of interest and the variables stream flow, water depth, velocity, shear stress, stream power, and water table depth. For now, we will just generate fake data.
 
 ```{r}
 
 start <- as.POSIXct("01-01-2020", format = "%m-%d-%Y")
 end <- as.POSIXct("01-01-2025", format = "%m-%d-%Y")
 
-n <- 36
-
 hydlics <- data.frame(
-  "DateTime" = seq.POSIXt(from = start, to = end, by = "hour"),
-  "Node" = rep(1),
-  "Bank" = "left",
-  "Shr" = round(rnorm(43849, 0, 5)^2,2),
-  "Vlcty" = round(rnorm(43849, 4, 5)^2,2), 
-  "Pwr" = round(rnorm(43849, 4, 5)^2,2),
-  "Dpth" = round(rnorm(43849, 1, 5)^2,2)
+  "dateTime" = seq.POSIXt(from = start, to = end, by = "hour"),
+  "node" = rep(1),
+  "bank" = "left",
+  "shr" = round(rnorm(43849, 0, 5)^2,2),
+  "vlcty" = round(rnorm(43849, 4, 5)^2,2), 
+  "pwr" = round(rnorm(43849, 4, 5)^2,2),
+  "dpth" = round(rnorm(43849, 1, 5)^2,2)
 )
+
+hydlics <- hydlics %>% 
+  mutate(year = year(dateTime),
+         month = month(dateTime),
+         season = ifelse(month %in% c(11,12,1,2,3), "w", "s")) %>% 
+  select(dateTime, year, month, season, node, bank, shr, vlcty, pwr, dpth)
 
 save(hydlics, file = "hydlics.Rdata")
 
 ```
 
-We also load the models or the thresholds used to predict some measure of suitability based on the hydraulics. the models are continuous relatiomships between the hydraulic variable and percent mortality.  The thresholds show the minimum or maximum values that certain hydraulic need to reach to create suitabilty condiitons. Specifics are discussed in each life history stage section below.
+We also load the models or the thresholds used to predict some measure of suitability based on the hydraulics. the models are continuous relationships between the hydraulic variable and percent mortality.  The thresholds show the minimum or maximum values that certain hydraulic need to reach to create suitability conditions. Specifics are discussed in each life history stage section below.
 
 
 ```{r}
@@ -60,81 +70,138 @@ most_consecutive_val = function(vector, val = 1) {
 
 ```
 
-# Germination Suitabiity
+# Germination Suitability
 
-First, we determine the suitabliity for each node, bank, and year to support black willow germination.  Germination suitalbity is determined using inundation duration and magnitude. 
+First, we determine the suitability for each node, bank, and year to support black willow germination.  Germination suitability is determined using inundation duration and magnitude. 
 
-For inundation duration we will use data from Nakai, A., & Kisanuki, H. (2007). Effect of inundation duration on Salix gracilistyla density and size on a gravel bar. Journal of Forest Research, 12(5), 365–370. https://doi.org/10.1007/s10310-007-0027-7. They found that inundation durations longer than 280 days or less than 85 days led to low or zero tree density 1-4 years later, suggesting that germination was unsuccessful. We will use 5cm as a depth to represent innundation, anything less than this would be unreliable output from the HEC-RAS model.
+For inundation duration we will use data from @Nakai2007. They found that inundation duration longer than 280 days or less than 85 days led to low or zero tree density 1-4 years later, suggesting that germination was unsuccessful. We will use 5cm as a depth to represent inundation, anything less than this would be unreliable output from the HEC-RAS model.
 
-The rule, calculated for each year:
-1. IF depth exceed 5cm for less than 85 days, Unsuitable
-2. IF dpeth exceed 5cm for greater than 280 days, Unsuitable
+The rule, calculated for each year:  
+1. IF depth exceed 5cm for less than 85 days, Unsuitable  
+2. IF depth exceed 5cm for greater than 280 days, Unsuitable  
 3. IF depth exceeds 5cm for >85 and <280 days, Suitable
 
-In the temp file, we are creating a variable that 
+In the grm file, we are creating a variable that shows the duration of time a depth value was larger than 5cm (depth_germ_cm)
+
+In the suitability file, we are creating a new variable that denotes a duration of appropriate depth longer than 85 and less than 280 days as suitable, else unsuitable. The suitability data frame will be what we add to for all the other variables and life history stages - all will be joined based on the node, bank, and year. 
 
 
 ```{r}
 
 
-  temp <- hydlics %>% 
-    mutate(germ_depth_suitability = most_consecutive_val(vector=abs(diff(which(Depth >= depth_germ_cm))==1)))
+  grm <- hydlics %>% 
+    filter(season == "w") %>% 
+    group_by(year) %>% 
+    mutate(germ_depth_suitability = most_consecutive_val(vector=abs(diff(which(dpth >= depth_germ_cm))==1)))
 
-habitat_suitability <- 
-  
-  unique(data.frame(
-    
-  "year" = temp$Year, 
-  "node" = temp$DepthPoint,
-  "lifestage" = "germination", 
-  "variable" = "depth", 
-  "suitability" = ifelse(temp$germ_depth_suitability >= depth_germ_low_duration_days*24 & temp$germ_depth_suitability <= depth_germ_high_duration_days*24, TRUE, FALSE)
 
-))
+suitability <- 
+  data.frame(
+    "year" = grm$year, 
+    "node" = grm$node,
+    "bank" = grm$bank,
+    "lifestage" = "germination", 
+    "variable" = "depth", 
+    "suitability" = ifelse(grm$germ_depth_suitability >= depth_germ_low_duration_days*24 & grm$germ_depth_suitability <= depth_germ_high_duration_days*24, "suitable", "unsuitable")
 
+)
+
+suitability <- unique(suitability)
+
+suitability
          
   
-  
-  
-
 
 ```
 
 
 # Seeding Suitablitiy
 
-To predict seedling suitability, we will use three curves on water table drawdown, depth (or inundation) and shear stress. Watertable drawdown is important because as seedlings grow, it is important that their roots maintain contact with the groundwater. A recession that is more rapid than root growth will results in seedling mortality. Inundation is important because water that is too deep above the soil surface for too long can create anoxic conditions and result in seedling mortality. Finally, shear stress is a measure used to deterime if the force of the flowing water on the seedlings is strong enough to remove them.
+To predict seedling suitability, we will use three curves on water table draw-down, depth (or inundation) and shear stress. Water table draw-down is important because as seedlings grow, it is important that their roots maintain contact with the groundwater. A recession that is more rapid than root growth will results in seedling mortality. Inundation is important because water that is too deep above the soil surface for too long can create anoxic conditions and result in seedling mortality. Finally, shear stress is a measure used to determine if the force of the flowing water on the seedlings is strong enough to remove them.
 
-For watertable drawdown rate, we will use experimental data from the following two studies: Horton, J. L., & Clark, J. L. (2001). Water table decline alters growth and survival of Salix gooddingii and Tamarix chinensis seedlings. Forest Ecology and Management, 140(2–3), 239–247. and 
-Stella, J. C., Battles, J., & McBride, J. (2006). Restoring recruitment processes for riparian cottonwoods and willows: a field-calibrated predictive model for the lower San Joaquin Basin.  These studies report data that we used to develop a curve relating 50 day survival
+
+### Water Table Drawdown
+For water-table draw-down rate, we will use experimental data from the following two studies: @Horton2001 and @Stella2006. These studies report data that we used to develop a curve relating 50 day survival. For now, we are holding off on the draw-down rate because it is unclear if we will have that data from Colorado school of mines.
 
 ```{r}
 
 
-
-
-
 ```
 
-For depth, we we use a quadratic curve from two publications:
+### Depth
+
+For depth, we we use a quadratic curve from two publications:@Tallent-Halsell2002 and @Vandersande2001.  
+
+Because this is a continuous function, we will need to consolidate the outcome somehow, as it is, we will have a mortality percentage estimated every hour for 5 years! We could have a cut off mortality percentage (for example a mortality percentage greater than 70% means it is likely that node is not suitable that year) Or a percentage and a duration (for example 5 days or longer with a mortality percentage greater than 70%) means that stream is unsuitable. Or we could leave it continuous and take some summary value every month or so.
 
 ```{r}
 
 summary(depth_seedling_mod)
 
-temp <- hydlics %>% 
-  mutate(seedling_depth_mortality_perc = predict(depth_seedling_mod, newdata = hydlics))
+#rename dpth to be depth_cm because that is the variable in the model
+sdlng_dpr <- hydlics %>% 
+  rename(depth_cm = dpth)
 
-temp2 <- data.frame(
-    
-  "year" = temp$Year, 
-  "node" = temp$DepthPoint,
-  "lifestage" = "seedling", 
-  "variable" = "depth", 
-  "suitability" = 
-    
-)
+sdlng_dpr <- sdlng_dpr %>% 
+  mutate(seedling_dpth_mortality_perc = predict(depth_seedling_mod, newdata = sdlng_dpr)) %>%
+  group_by(year, month) %>% 
+  summarise(max_mortality_perc = max(seedling_dpth_mortality_perc)) %>% 
+  mutate(yearMonth = paste(year, month, sep = "_")) %>% 
+  ungroup() 
+
+#obviously for now ignore the values (they were randomly generated) but this is what that would look like.
+ggplot(data = sdlng_dpr, mapping = aes(x = yearMonth, y = max_mortality_perc))+
+  geom_point()+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+   
+
+```
+
+### Shear Stress  
+
+For shear stress, we will use a curve produced by data collected in two years that reported shear stress and percent mortality from @Pasquale2014. The curves are different each year, so we will combine the data and create one overall curve to use for our projections. Similar to the depth section above, this produces a continuous output. One option (shown in the plot below) is to take the maximum value each month and we could use this to determine suitability on a monthly basis. We will need to discuss how to convert the continuous results to suitability categories for communication.  
+
+```{r}
+
+summary(shear_seedling)
+
+#rename shr to shear to match the variable name in the model
+sdlng_shr <- hydlics %>%  
+  rename(shear = shr)
+
+sdlng_shr <- sdlng_shr %>% 
+  mutate(seedling_shr_mortality_perc = predict(shear_seedling, newdata = sdlng_shr)) %>%
+  group_by(year, month) %>% 
+  summarise(max_mortality_perc = max(seedling_shr_mortality_perc)) %>% 
+  mutate(yearMonth = paste(year, month, sep = "_")) %>% 
+  ungroup() 
+
+#obviously for now ignore the values (they were randomly generated) but this is what that would look like.
+ggplot(data = sdlng_shr, mapping = aes(x = yearMonth, y = max_mortality_perc))+
+  geom_point()+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+  
+
+
 ```
 
 
-For shear stress, we will use a curve produced by data collected in two years that reported shear stress and percent mortality.
+
+# Adult Suitability
+
+### water Table Depth
+
+We will use a depth of 3m based on @Lite2005 and @Stromberg2016.  Adult willows are obligate phreatophytes, which mean their roots need to be consistently within the groundwater or capillary fringe.  3m represents the deepest that adult black willow roots are likely to grow.  Like with the seedlings, we'll hold off on this variable because we do not know if we will be getting that output from the Colorado school of mines.
+
+```{r}
+
+watab_adult_cm <- 300
+
+```
+
+### Shear Stress
+
+Adult willows are less suseptible to being pulled out of the ground or broken by large scouring flows because they have deeper roots and thicker trunks than the seedlings. However, a large enough flow that imparts a large enough shear stress could of course remove them. For this, 
+
+
+# References
