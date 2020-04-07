@@ -4,7 +4,7 @@ Model for the Gooddingg's Black willow
 
 Load libraries
 
-```{r}
+```{r echo = FALSE}
 
 library(tidyverse)
 
@@ -13,17 +13,33 @@ library(tidyverse)
 ```
 
 
-In this analysis we are using  a series of rules to determine whether simulated hydralics are suitable for the different life history phases of the Gooddingg's Black willow.  The hydalics are simulated for the Los Angeles River using different waster water reuse scenarios. We start by loading the hydralic data.  The hydrulic data shows hourly data for each cross section of interest and the variables streamflow, water depth, velocity, shear stress, stream power, and water table depth. To build the model
-
-We also load the models or the thresholds used to predict some measure of suitability based on the hydraulics
+In this analysis we are using  a series of rules to determine whether simulated hydralics are suitable for the different life history phases of the Gooddingg's Black willow.  The hydralics are simulated for the Los Angeles River using different waster water reuse scenarios. We start by loading the hydralic data.  The hydrulic data shows hourly data for each cross section of interest and the variables streamflow, water depth, velocity, shear stress, stream power, and water table depth. For now, we will just generate fake data.
 
 ```{r}
 
-load("hydlics.RData")
-hydlics <- hydlics %>% 
-  filter(Year == 2010, DepthPoint == "D1", ShearPoint == "S1")
+start <- as.POSIXct("01-01-2020", format = "%m-%d-%Y")
+end <- as.POSIXct("01-01-2025", format = "%m-%d-%Y")
+
+n <- 36
+
+hydlics <- data.frame(
+  "DateTime" = seq.POSIXt(from = start, to = end, by = "hour"),
+  "Node" = rep(1),
+  "Bank" = "left",
+  "Shr" = round(rnorm(43849, 0, 5)^2,2),
+  "Vlcty" = round(rnorm(43849, 4, 5)^2,2), 
+  "Pwr" = round(rnorm(43849, 4, 5)^2,2),
+  "Dpth" = round(rnorm(43849, 1, 5)^2,2)
+)
+
+save(hydlics, file = "hydlics.Rdata")
+
+```
+
+We also load the models or the thresholds used to predict some measure of suitability based on the hydraulics. the models are continuous relatiomships between the hydraulic variable and percent mortality.  The thresholds show the minimum or maximum values that certain hydraulic need to reach to create suitabilty condiitons. Specifics are discussed in each life history stage section below.
 
 
+```{r}
 
 load("shear_seedling.rda")
 load("watab_seedling.rda")
@@ -46,9 +62,9 @@ most_consecutive_val = function(vector, val = 1) {
 
 # Germination Suitabiity
 
-First, we determine the suitabliity for each node and year to support black willow germination.  Germination suitalbity is determined using inundation duration. 
+First, we determine the suitabliity for each node, bank, and year to support black willow germination.  Germination suitalbity is determined using inundation duration and magnitude. 
 
-For inundation duration we will use data from Nakai, A., & Kisanuki, H. (2007). Effect of inundation duration on Salix gracilistyla density and size on a gravel bar. Journal of Forest Research, 12(5), 365–370. https://doi.org/10.1007/s10310-007-0027-7. They found that inundation durations longer than 280 days or less than 85 days led to low or zero tree density 1-4 years later, suggesting that germination was unsuccessful. We will use 5cm as a depth to suggest innundation, anything less than this would be unreliable output from the HEC RAS model.
+For inundation duration we will use data from Nakai, A., & Kisanuki, H. (2007). Effect of inundation duration on Salix gracilistyla density and size on a gravel bar. Journal of Forest Research, 12(5), 365–370. https://doi.org/10.1007/s10310-007-0027-7. They found that inundation durations longer than 280 days or less than 85 days led to low or zero tree density 1-4 years later, suggesting that germination was unsuccessful. We will use 5cm as a depth to represent innundation, anything less than this would be unreliable output from the HEC-RAS model.
 
 The rule, calculated for each year:
 1. IF depth exceed 5cm for less than 85 days, Unsuitable
