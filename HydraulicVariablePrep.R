@@ -53,9 +53,14 @@ save(depth_germ, file = "depth_germ.rda")
 inund <- inund %>% 
   filter(species == "Salix gooddingii")
 
-plot(inund$depth_cm, inund$mortality_prec)
+ggplot(data = inund, mapping = aes(x = depth_cm, y = mortality_prec))+
+  geom_point(size = 2)+
+  geom_smooth(method = "lm", formula = y ~ x + I(x^2))+
+  labs(x = "Depth (cm)", y = "Mortality (%)")+
+  theme_classic()+
+  theme(axis.text = element_text(size = 20), axis.title = element_text(size = 20))
 
-summary(depth_seedling_mod <- lm(mortality_prec ~ depth_cm + I(depth_cm^2) , data = inund))
+summary(depth_seedling_mod <- lm(mortality_prec ~ depth_cm + I(depth_cm^2), data = inund))
 
 save(depth_seedling_mod, file = "depth_seedling_mod.rda")
 
@@ -140,12 +145,11 @@ force1 <- force %>%
 
 names(shear)[c(1,4)] <- c("shear", "mortality")
 shear$year <- as.factor(shear$year)
-ggplot(data = shear, mapping = aes(x = shear, y = mortality, color = year, shape = year))+
+ggplot(data = shear, mapping = aes(x = shear, y = mortality))+
   geom_point(size = 4)+
   geom_smooth(method = "lm")+
   labs(y = "Mortality (%)", x = "Bed Shear Stress (Pa)")+
   theme_classic()+
-  geom_hline(yintercept = 50, color = "red", lwd = 1.5)+
   theme(axis.text = element_text(size = 20), axis.title = element_text(size = 20))
 
 summary(shear_seedling <- lm(mortality~shear, data = shear))
