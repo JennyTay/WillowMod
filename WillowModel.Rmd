@@ -23,26 +23,28 @@ In this analysis we are using  a series of rules to determine whether simulated 
 
 ```{r}
 
-start <- as.POSIXct("01-01-2020", format = "%m-%d-%Y")
-end <- as.POSIXct("01-01-2025", format = "%m-%d-%Y")
-
-hydlics <- data.frame(
-  "dateTime" = seq.POSIXt(from = start, to = end, by = "hour"),
-  "node" = rep(1),
-  "bank" = "left",
-  "shr" = round(rnorm(43849, 0, 5)^2,2),
-  "vlcty" = round(rnorm(43849, 4, 5)^2,2), 
-  "pwr" = round(rnorm(43849, 4, 5)^2,2),
-  "dpth" = round(rnorm(43849, 1, 5)^2,2)
-)
-
+hydlics <- read.csv("hecras.csv")
 hydlics <- hydlics %>% 
-  mutate(year = year(dateTime),
-         month = month(dateTime),
-         season = ifelse(month %in% c(11,12,1,2,3), "w", "s")) %>% 
-  select(dateTime, year, month, season, node, bank, shr, vlcty, pwr, dpth)
+  rename(Avg_Vel_ft_s_LOB = Avg..Vel...ft.s..LOB,
+         Depth_ft_LOB = Hydr..Depth..ft..LOB,
+         Shear_lb_sqft_LOB  = Shear..lb.sq.ft..LOB, 
+         Power_lb_ft_s_LOB  = Stream.Power..lb.ft.s..LOB,
+         Avg_Vel_ft_s_MC  = Avg..Vel...ft.s..MC, 
+         Depth_ft_MC  = Hydr..Depth..ft..MC,
+         Shear_lb_sqft_MC  = Shear..lb.sq.ft..MC, 
+         Power_lb_ft_s_MC  = Stream.Power..lb.ft.s..MC, 
+         Avg_Vel_ft_s_ROB  = Avg..Vel...ft.s..ROB, 
+         Depth_ft_ROB  = Hydr..Depth..ft..ROB, 
+         Shear_lb_sqft_ROB = Shear..lb.sq.ft..ROB,
+         Power_lb_ft_s_ROB  = Stream.Power..lb.ft.s..ROB) %>% 
+  mutate(DateTime = mdy_hms(DateTime),
+         year = year(DateTime),
+         month = month(DateTime),
+         day = day(DateTime))
 
-save(hydlics, file = "hydlics.Rdata")
+
+
+
 
 ```
 
@@ -89,17 +91,20 @@ In the suitability file, we are creating a new variable that denotes a duration 
 ```{r}
 
 
-  grm <- hydlics %>% 
-    filter(season == "w") %>% 
-    group_by(year) %>% 
-    mutate(germ_depth_suitability = most_consecutive_val(vector=abs(diff(which(dpth >= depth_germ_cm))==1)))
+grm <- hydlics %>% 
+  select(1:3, 5, 9, 13, 16:18) %>% 
+  gather(4:6, key = "position1", value = "depth_ft") %>% 
+  mutate(depth_cm = depth_ft * 30.48,
+         position = gsub(pattern = "Depth_ft_", replacement = "", x = position1)) %>% 
+  select(-position1, -depth_ft) %>% 
+    group_by(month, position) %>% 
+    summarize(germ_depth_suitability = most_consecutive_val(vector=abs(diff(which(depth_cm >= depth_germ_cm))==1)))
 
 
 suitability <- 
   data.frame(
     "year" = grm$year, 
-    "node" = grm$node,
-    "bank" = grm$bank,
+    "node" = grm$position,
     "lifestage" = "germination", 
     "variable" = "depth", 
     "suitability" = ifelse(grm$germ_depth_suitability >= depth_germ_low_duration_days*24 & grm$germ_depth_suitability <= depth_germ_high_duration_days*24, "suitable", "unsuitable")
@@ -108,7 +113,9 @@ suitability <-
 
 suitability <- unique(suitability)
 
-suitability
+ggplot(grm, mapping = aes(y = depth_cm, x = DateTime, color = position))+
+  geom_line()+
+  labs(x = "Date", y = "Depth (cm)")
          
   
 
@@ -138,21 +145,25 @@ Because this is a continuous function, we will need to consolidate the outcome s
 
 summary(depth_seedling_mod)
 
-#rename dpth to be depth_cm because that is the variable in the model
-sdlng_dpr <- hydlics %>% 
-  rename(depth_cm = dpth)
+dpth <- hydlics %>% 
+  select(1:3, 5, 9, 13, 16:18) %>% 
+  gather(4:6, key = "position1", value = "depth_ft") %>% 
+  mutate(depth_cm = depth_ft * 30.48,
+         position = gsub(pattern = "Depth_ft_", replacement = "", x = position1)) %>% 
+  select(-position1, -depth_ft) %>% 
+  mutate(seedling_dpth_mortality_perc = predict(depth_seedling_mod, newdata = dpth))
 
-sdlng_dpr <- sdlng_dpr %>% 
-  mutate(seedling_dpth_mortality_perc = predict(depth_seedling_mod, newdata = sdlng_dpr)) %>%
-  group_by(year, month) %>% 
-  summarise(max_mortality_perc = max(seedling_dpth_mortality_perc)) %>% 
-  mutate(yearMonth = paste(year, month, sep = "_")) %>% 
-  ungroup() 
 
-#obviously for now ignore the values (they were randomly generated) but this is what that would look like.
-ggplot(data = sdlng_dpr, mapping = aes(x = yearMonth, y = max_mortality_perc))+
-  geom_point()+
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+ggplot(data = dpth, mapping = aes(x = as.factor(month), y = seedling_dpth_mortality_perc))+
+  geom_boxplot()+
+  ylim(c(0,100))+
+  facet_wrap(vars(position))+
+  labs(x = "Month", y = "Seedling Mortality (%)")+
+  theme(axis.text = element_text(size = 12),
+        strip.text = element_text(size = 20, face = "bold"),
+        strip.background = element_rect(fill = "lightblue", colour = "black"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill=NA, size=.5))
    
 
 ```
@@ -165,22 +176,25 @@ For shear stress, we will use a curve produced by data collected in two years th
 
 summary(shear_seedling)
 
-#rename shr to shear to match the variable name in the model
-sdlng_shr <- hydlics %>%  
-  rename(shear = shr)
+shr <- hydlics %>% 
+  select(1:3, 6, 10, 14, 16:18) %>% 
+  gather(4:6, key = "position1", value = "shear1") %>% 
+  mutate(shear = shear1 * 47.8803, #convert to Pa
+         position = gsub(pattern = "Shear_lb_sqft_", replacement = "", x = position1)) %>% 
+  select(-position1, -shear1) %>% 
+  mutate(seedling_shr_mortality_perc = predict(shear_seedling, newdata = shr))
 
-sdlng_shr <- sdlng_shr %>% 
-  mutate(seedling_shr_mortality_perc = predict(shear_seedling, newdata = sdlng_shr)) %>%
-  group_by(year, month) %>% 
-  summarise(max_mortality_perc = max(seedling_shr_mortality_perc)) %>% 
-  mutate(yearMonth = paste(year, month, sep = "_")) %>% 
-  ungroup() 
 
-#obviously for now ignore the values (they were randomly generated) but this is what that would look like.
-ggplot(data = sdlng_shr, mapping = aes(x = yearMonth, y = max_mortality_perc))+
-  geom_point()+
-  theme(axis.text.x = element_text(angle = 90, hjust = 1))
-  
+ggplot(data = shr, mapping = aes(x = as.factor(month), y = seedling_shr_mortality_perc))+
+  geom_boxplot()+
+  ylim(c(20,30))+
+  facet_wrap(vars(position))+
+  labs(x = "Month", y = "Seedling Mortality (%)")+
+  theme(axis.text = element_text(size = 12),
+        strip.text = element_text(size = 20, face = "bold"),
+        strip.background = element_rect(fill = "lightblue", colour = "black"),
+        panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), panel.border = element_rect(colour = "black", fill=NA, size=.5))
 
 
 ```
