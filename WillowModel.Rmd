@@ -19,7 +19,7 @@ library(lubridate)
 ```
 
 
-In this analysis we are using  a series of rules to determine whether simulated hydraulics are suitable for the different life history phases of the Gooddingg's Black willow.  The hydraulics are simulated for the Los Angeles River using different waster water reuse scenarios. We start by loading the hydraulic data.  The hydraulic data shows hourly data for each cross section of interest and the variables stream flow, water depth, velocity, shear stress, stream power, and water table depth. For now, we will just generate fake data.
+In this analysis we are using  a series of rules to determine whether simulated hydraulics are suitable for the different life history phases of the Gooddingg's Black willow.  The hydraulics are simulated for the Los Angeles River using different waste water reuse scenarios. We start by loading the hydraulic data.  The hydraulic data shows hourly data for each cross section of interest and the variables stream flow, water depth, velocity, shear stress, stream power, and water table depth. 
 
 ```{r}
 
@@ -59,9 +59,11 @@ load("depth_seedling_mod.rda")
 
 #thresholds
 depth_germ_cm <- 5
-depth_germ_low_duration_days <-  85
-depth_germ_high_duration_days <- 280
+depth_germ_lo_dur_days <-  85
+depth_germ_hi_dur_days <- 280
 watab_adult_cm <- 300
+streampwr_lo <- 20
+streampwr_hi <- 4000
 
 
 
@@ -107,7 +109,7 @@ suitability <-
     "node" = grm$position,
     "lifestage" = "germination", 
     "variable" = "depth", 
-    "suitability" = ifelse(grm$germ_depth_suitability >= depth_germ_low_duration_days*24 & grm$germ_depth_suitability <= depth_germ_high_duration_days*24, "suitable", "unsuitable")
+    "suitability" = ifelse(grm$germ_depth_suitability >= depth_germ_lo_dur_days*24 & grm$germ_depth_suitability <= depth_germ_hi_dur_days*24, "suitable", "unsuitable")
 
 )
 
@@ -213,9 +215,16 @@ watab_adult_cm <- 300
 
 ```
 
-### Shear Stress
+### stream power
 
 Adult willows are less suseptible to being pulled out of the ground or broken by large scouring flows because they have deeper roots and thicker trunks than the seedlings. However, a large enough flow that imparts a large enough shear stress could of course remove them. For this, 
 
+
+```{r}
+
+
+
+
+```
 
 # References
